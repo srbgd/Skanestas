@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  redis-db:
+    image: redis:latest
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - 6379:6379
+
+  generator:
+    build: ./generator
+    depends_on:
+      - redis-db
+    environment:
+      - REDIS_HOST=redis-db
+    restart: on-failure
+    deploy:
+      mode: replicated
+      replicas: 2
+
+  exporter:
+    build: ./exporter
+    depends_on:
+      - redis-db
+      - influxdb
+    environment:
+      - REDIS_HOST=redis-db
+      - INFLUXDB_V2_URL=http://influxdb:8086
+    restart: on-failure
+
+  influxdb:
+    image: influxdb
+    restart: always
+    ports:
+      - 8086:8086
+    volumes:
+      - ./data/influxdb:/var/lib/influxdb2
+
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    depends_on:
+      - influxdb
